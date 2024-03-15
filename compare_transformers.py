@@ -1,51 +1,49 @@
 import json
-import pickle
+import numpy as np
 import pandas as pd
-
-def get_user_input(features):
-    user_data = {}
-    print("Enter data for comparison:")
-    for feature in features:
-        value = input(f"Enter {feature}: ")
-        user_data[feature] = float(value)  # Convert user input to float
-    return user_data
+import pickle
 
 def compare_transformers():
-    with open('transformer_data.json', 'r') as infile:
-        data = json.load(infile)
-
-    features = list(data[0]['features'].keys())
-
-    # Get user input for comparison
-    user_data = get_user_input(features)
-
+    # Load the input data
+    v = float(input("Enter v: "))
+    u = float(input("Enter u: "))
+    f = float(input("Enter f: "))
+    h = float(input("Enter h: "))
+    
+    input_data = {'v': v, 'u': u, 'f': f, 'h': h}
+    
+    # Load the trained model
     with open('transformer_model.pkl', 'rb') as model_file:
-        model, label_encoder = pickle.load(model_file)
-
-    # Prepare user input for prediction
-    input_data = [user_data[feature] for feature in features]
-    input_data = [input_data]  # Model.predict() expects a 2D array
-
-    predictions = model.predict(input_data)[0]
-
-    # Predict scores for all transformers in the data
-    transformer_features = [[transformer['features'][feature] for feature in features] for transformer in data]
-    transformer_predictions = model.predict(transformer_features)
+        model = pickle.load(model_file)
     
-    # Create a DataFrame to hold transformer names and prediction scores
-    transformer_names = [transformer['name'] for transformer in data]
-    ranking_data = {'Transformer': transformer_names, 'Prediction': transformer_predictions}
-    ranking_df = pd.DataFrame(ranking_data)
+    # Load transformer data
+    with open('transformer_data.json', 'r') as json_file:
+        transformer_data = json.load(json_file)
     
-    # Sort the DataFrame based on prediction scores in descending order
-    ranking_df = ranking_df.sort_values(by='Prediction', ascending=False).reset_index(drop=True)
+    # Create a DataFrame for input data
+    input_df = pd.DataFrame(input_data, index=[0])
     
-    # Rank transformers from best to worst and print the ranking
-    ranked_transformers = ranking_df.index + 1
-    ranking_df['Rank'] = ranked_transformers
+    # Predict rankings for all transformers
+    rankings = {}
+    for transformer in transformer_data:
+        transformer_name = transformer['name']
+        transformer_features = list(transformer['features'].values())
+        transformer_features_encoded = np.array(transformer_features).reshape(1, -1)
+        
+        # Predict the ranking
+        ranking = model.predict(transformer_features_encoded)[0]
+        
+        rankings[transformer_name] = ranking
     
+    # Sort transformers based on their predicted rankings
+    sorted_rankings = sorted(rankings.items(), key=lambda x: x[1])
+    
+    # Print the rankings
     print("\nTransformer Rankings based on the given data:")
-    print(ranking_df)
+    for rank, (transformer, ranking) in enumerate(sorted_rankings, start=1):
+        print(f"Rank {rank}: {ranking} ({transformer})")
 
 if __name__ == "__main__":
     compare_transformers()
+
+# a, b, c, d, e, f, g, h, i, j
